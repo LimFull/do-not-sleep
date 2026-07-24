@@ -15,7 +15,7 @@ struct SettingsView: View {
                     in: 1...120
                 )
 
-                Text("키보드와 마우스 입력이 모두 없을 때 포인터로 작은 원을 그립니다.")
+                Text("키보드와 마우스 입력이 모두 없을 때 포인터로 5초 동안 큰 원을 그립니다.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

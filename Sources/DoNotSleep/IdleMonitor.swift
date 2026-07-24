@@ -93,9 +93,10 @@ final class IdleMonitor: NSObject, ObservableObject {
 
 @MainActor
 private enum MouseNudger {
-    private static let circleRadius: CGFloat = 20
-    private static let revolutions = 2
-    private static let pointsPerRevolution = 24
+    private static let circleRadius: CGFloat = 100
+    private static let revolutions = 1
+    private static let pointsPerRevolution = 100
+    private static let frameInterval = Duration.milliseconds(50)
     private static let pointerMovementTolerance: CGFloat = 3
 
     static func nudge() -> Bool {
@@ -176,7 +177,7 @@ private enum MouseNudger {
         var lastPostedPoint = firstPoint
 
         for point in points {
-            try? await Task.sleep(for: .milliseconds(20))
+            try? await Task.sleep(for: frameInterval)
 
             guard !Task.isCancelled,
                   pointerIsNear(lastPostedPoint),
@@ -188,7 +189,6 @@ private enum MouseNudger {
             lastPostedPoint = point
         }
 
-        try? await Task.sleep(for: .milliseconds(20))
         guard !Task.isCancelled, pointerIsNear(lastPostedPoint) else {
             return
         }
