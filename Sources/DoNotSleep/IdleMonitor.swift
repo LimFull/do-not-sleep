@@ -93,6 +93,11 @@ final class IdleMonitor: NSObject, ObservableObject {
 
 @MainActor
 private enum MouseNudger {
+    private static let circleRadius: CGFloat = 20
+    private static let revolutions = 2
+    private static let pointsPerRevolution = 24
+    private static let pointerMovementTolerance: CGFloat = 3
+
     static func nudge() -> Bool {
         guard AccessibilityPermission.isGranted,
               let currentEvent = CGEvent(source: nil) else {
@@ -109,25 +114,103 @@ private enum MouseNudger {
             &displayCount
         )
 
-        let target: CGPoint
+        let center: CGPoint
         if lookupResult == .success, displayCount > 0 {
             let bounds = CGDisplayBounds(displayID)
-            let canMoveRight = current.x + 1 < bounds.maxX
-            target = CGPoint(x: current.x + (canMoveRight ? 1 : -1), y: current.y)
+            center = circleCenter(near: current, inside: bounds)
         } else {
-            target = CGPoint(x: current.x + 1, y: current.y)
+            center = current
         }
 
-        guard let event = CGEvent(
-            mouseEventSource: nil,
-            mouseType: .mouseMoved,
-            mouseCursorPosition: target,
-            mouseButton: .left
-        ) else {
+        let points = circlePoints(around: center)
+        guard let firstPoint = points.first,
+              let firstEvent = mouseEvent(at: firstPoint) else {
             return false
         }
 
-        event.post(tap: .cghidEventTap)
+        firstEvent.post(tap: .cghidEventTap)
+
+        Task {
+            await animate(
+                through: points.dropFirst(),
+                from: firstPoint,
+                returningTo: current
+            )
+        }
         return true
+    }
+
+    private static func circleCenter(
+        near point: CGPoint,
+        inside bounds: CGRect
+    ) -> CGPoint {
+        let inset = circleRadius + 1
+        guard bounds.width > inset * 2, bounds.height > inset * 2 else {
+            return point
+        }
+
+        return CGPoint(
+            x: min(max(point.x, bounds.minX + inset), bounds.maxX - inset),
+            y: min(max(point.y, bounds.minY + inset), bounds.maxY - inset)
+        )
+    }
+
+    private static func circlePoints(around center: CGPoint) -> [CGPoint] {
+        let pointCount = revolutions * pointsPerRevolution
+
+        return (0...pointCount).map { index in
+            let angle =
+                2 * Double.pi * Double(index) / Double(pointsPerRevolution)
+            return CGPoint(
+                x: center.x + circleRadius * CGFloat(cos(angle)),
+                y: center.y + circleRadius * CGFloat(sin(angle))
+            )
+        }
+    }
+
+    private static func animate(
+        through points: ArraySlice<CGPoint>,
+        from firstPoint: CGPoint,
+        returningTo originalPoint: CGPoint
+    ) async {
+        var lastPostedPoint = firstPoint
+
+        for point in points {
+            try? await Task.sleep(for: .milliseconds(20))
+
+            guard !Task.isCancelled,
+                  pointerIsNear(lastPostedPoint),
+                  let event = mouseEvent(at: point) else {
+                return
+            }
+
+            event.post(tap: .cghidEventTap)
+            lastPostedPoint = point
+        }
+
+        try? await Task.sleep(for: .milliseconds(20))
+        guard !Task.isCancelled, pointerIsNear(lastPostedPoint) else {
+            return
+        }
+
+        mouseEvent(at: originalPoint)?.post(tap: .cghidEventTap)
+    }
+
+    private static func pointerIsNear(_ point: CGPoint) -> Bool {
+        guard let current = CGEvent(source: nil)?.location else {
+            return false
+        }
+
+        return abs(current.x - point.x) <= pointerMovementTolerance
+            && abs(current.y - point.y) <= pointerMovementTolerance
+    }
+
+    private static func mouseEvent(at point: CGPoint) -> CGEvent? {
+        CGEvent(
+            mouseEventSource: nil,
+            mouseType: .mouseMoved,
+            mouseCursorPosition: point,
+            mouseButton: .left
+        )
     }
 }
