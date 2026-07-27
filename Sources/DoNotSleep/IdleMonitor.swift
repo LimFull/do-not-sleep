@@ -93,9 +93,9 @@ final class IdleMonitor: NSObject, ObservableObject {
 
 @MainActor
 private enum MouseNudger {
-    private static let circleRadius: CGFloat = 100
+    private static let circleRadius: CGFloat = 250
     private static let revolutions = 1
-    private static let pointsPerRevolution = 100
+    private static let pointsPerRevolution = 200
     private static let frameInterval = Duration.milliseconds(50)
     private static let pointerMovementTolerance: CGFloat = 3
 

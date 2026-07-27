@@ -3,7 +3,7 @@
 set -euo pipefail
 
 PROJECT_DIR="${0:A:h:h}"
-VERSION="${1:-1.2.0}"
+VERSION="${1:-1.3.0}"
 APP_PATH="$PROJECT_DIR/dist/DoNotSleep.app"
 DMG_PATH="$PROJECT_DIR/dist/DoNotSleep-$VERSION-universal.dmg"
 STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/do-not-sleep-dmg.XXXXXX")"
